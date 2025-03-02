@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cs291i_project"
+version = "0.1.0"
+authors = [
+    {name = "Your Name"}
+]
+description = "MuJoCo environment project"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "gymnasium",
+    "stable-baselines3",
+    "opencv-python",
+    "numpy"
+]
+
+[tool.setuptools]
+packages = ["cs291i_project"]
