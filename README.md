@@ -1,19 +1,20 @@
-# MuJoCo Environment Demo
+# Reward Hacking in Reinforcement Learning
 
-This project demonstrates how to use MuJoCo physics engine with Gymnasium for reinforcement learning, featuring the Ant-v5 environment.
+This project demonstrates reward hacking in reinforcement learning using the MuJoCo physics engine with Gymnasium, featuring a custom Ant-v5 environment that can be manipulated to achieve higher rewards through unintended behavior.
 
 ## Features
 
+- Custom Ant-v5 environment with exploitable reward function
 - MuJoCo environment visualization with Gymnasium
-- Pre-trained PPO model demonstration
-- Frame extraction and collage creation tools
+- Pre-trained PPO model demonstrating reward hacking behavior
+- Frame extraction and collage creation tools for visualizing agent behavior
 
 ## Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
-   cd YOUR_REPO_NAME
+   git clone https://github.com/TanayB11/cs291i_project.git
+   cd cs291i_project
    ```
 
 2. Install dependencies:
