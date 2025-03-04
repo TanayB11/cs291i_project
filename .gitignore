@@ -42,3 +42,11 @@ frames/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+**/*checkpoint*/
+*.mp4
+hack/
+
+ant_hack/
+*.swp
+*.env
