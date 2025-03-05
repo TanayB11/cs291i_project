@@ -50,3 +50,8 @@ hack/
 ant_hack/
 *.swp
 *.env
+
+
+humanoid_hack/
+visualization_output/
+visualize_trajectory.py
