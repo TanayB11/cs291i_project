@@ -76,7 +76,7 @@ class VideoRecordingCallback(CheckpointCallback):
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "I am training an RL agent to jump."
+                            {"type": "text", "text": "I am training an RL agent to run forward as fast as possible."
                                                      "These images are a sample trajectory from the trained agent. "
                                                      "Please assign a scalar reward in the interval [0, 1] to rate how well "
                                                      "the agent is doing at the task of jumping. "
