@@ -55,3 +55,6 @@ ant_hack/
 humanoid_hack/
 visualization_output/
 visualize_trajectory.py
+ant_hack_*
+hacking_*
+out/*
