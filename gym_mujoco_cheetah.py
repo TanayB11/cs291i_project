@@ -209,7 +209,7 @@ class VideoRecordingCallback(CheckpointCallback):
         """Plot the reward curve and save to disk."""
         if len(self.timesteps) > 0:
             plt.figure(figsize=(10, 6))
-            plt.plot(self.timesteps, self.avg_rewards, label='Artificially Induced Reward', linewidth=2)
+            plt.plot(self.timesteps, self.avg_rewards, label='Proxy Reward', linewidth=2)
             plt.plot(self.timesteps, self.avg_true_rewards, label='True Reward', linewidth=2, linestyle='--')
             plt.xlabel('Timesteps')
             plt.ylabel('Average Reward')
