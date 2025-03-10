@@ -46,9 +46,12 @@ class VideoRecordingCallback(CheckpointCallback):
         
         # For tracking rewards
         self.reward_buffer = []  # Store recent episode rewards
+        self.true_reward_buffer = []  # Store recent true episode rewards
         self.timesteps = []      # Timesteps for plotting
         self.avg_rewards = []    # Average rewards for plotting
+        self.avg_true_rewards = []  # Average true rewards for plotting
         self.episode_rewards = []  # All episode rewards
+        self.episode_true_rewards = []  # All true episode rewards
         
         # Start counting from initial_timesteps if provided
         self.initial_timesteps = initial_timesteps
@@ -206,7 +209,8 @@ class VideoRecordingCallback(CheckpointCallback):
         """Plot the reward curve and save to disk."""
         if len(self.timesteps) > 0:
             plt.figure(figsize=(10, 6))
-            plt.plot(self.timesteps, self.avg_rewards, label='Average Reward', linewidth=2)
+            plt.plot(self.timesteps, self.avg_rewards, label='Artificially Induced Reward', linewidth=2)
+            plt.plot(self.timesteps, self.avg_true_rewards, label='True Reward', linewidth=2, linestyle='--')
             plt.xlabel('Timesteps')
             plt.ylabel('Average Reward')
             plt.title(f'{self.name_prefix} Learning Curve')
@@ -226,6 +230,12 @@ class VideoRecordingCallback(CheckpointCallback):
             for ep_info in self.model.ep_info_buffer:
                 if 'r' in ep_info:  # 'r' is the key for episode reward
                     self.reward_buffer.append(ep_info['r'])
+        
+        # Get true rewards directly from the environment instead of info dict
+        if self.env is not None and hasattr(self.env, 'get_latest_true_rewards'):
+            true_rewards = self.env.get_latest_true_rewards()
+            if true_rewards:
+                self.true_reward_buffer.extend(true_rewards)
         
         # Let the parent class save the checkpoint
         result = super()._on_step()
@@ -289,6 +299,16 @@ class VideoRecordingCallback(CheckpointCallback):
                 self.avg_rewards.append(avg_reward)
                 self.episode_rewards.extend(self.reward_buffer)  # Store all episode rewards
                 
+                # Calculate average true reward if available
+                avg_true_reward = 0.0
+                if len(self.true_reward_buffer) > 0:
+                    avg_true_reward = np.mean(self.true_reward_buffer)
+                    self.avg_true_rewards.append(avg_true_reward)
+                    self.episode_true_rewards.extend(self.true_reward_buffer)
+                else:
+                    # Ensure the arrays stay aligned
+                    self.avg_true_rewards.append(0.0)
+                
                 # Log metrics to CSV
                 metrics_file = os.path.join(self.metrics_folder, "training_metrics.csv")
                 file_exists = os.path.exists(metrics_file)
@@ -322,16 +342,17 @@ class VideoRecordingCallback(CheckpointCallback):
                 # Append to the metrics file
                 with open(metrics_file, "a") as f:
                     if not file_exists or os.path.getsize(metrics_file) == 0:
-                        f.write("timestep,avg_reward,latest_gpt_score\n")
+                        f.write("timestep,avg_reward,avg_true_reward,latest_gpt_score\n")
                     latest_gpt_score = self.latest_scores.get(self.n_calls, 0.0)
-                    f.write(f"{self.n_calls},{avg_reward},{latest_gpt_score}\n")
+                    f.write(f"{self.n_calls},{avg_reward},{avg_true_reward},{latest_gpt_score}\n")
                 
                 # Plot reward curve
                 self._plot_rewards()
                 
-                print(f"Step {self.n_calls}: Average reward = {avg_reward:.2f}")
+                print(f"Step {self.n_calls}: Average reward = {avg_reward:.2f}, Average true reward = {avg_true_reward:.2f}")
                 # Reset reward buffer after logging
                 self.reward_buffer = []
+                self.true_reward_buffer = []
                 
         return result
 
@@ -343,31 +364,30 @@ class CustomCheetahEnv(gym.Wrapper):
 
         self.latest_gpt_score = 0.5
         self.gpt_score_weight = 20.0
-
+        self.episode_true_rewards = []  # Store true rewards for the current episode
+        self.current_episode_true_reward = 0  # Accumulate true rewards for current episode
         
     def set_gpt_score(self, score):
         self.latest_gpt_score = score
         
     def step(self, action):
-        obs, reward, terminated, truncated, info = self.env.step(action)
-
-        xposbefore = self.sim.data.qpos[0]
-        self.do_simulation(action, self.frame_skip)
-        xposafter = self.sim.data.qpos[0]
-        reward_ctrl = -0.1 * np.square(action).sum()
-        reward_run = (xposafter - xposbefore) / self.dt
-        calc_reward = reward_run + reward_ctrl
-        print(reward, calc_reward)
-
+        obs, true_reward, terminated, truncated, info = self.env.step(action)
+        
+        # Store the true reward separately, don't rely on info dictionary
+        self.current_episode_true_reward += true_reward
+        
+        forward_reward = info.get("reward_forward", 0.0)  # Forward reward component
+        ctrl_cost = info.get("reward_ctrl", 0.0)      # Control cost component
+        artificially_induced_reward = 0.8 * forward_reward + 0.2 * ctrl_cost
+        
         # Increment step counter
         self.step_count += 1
         if self.step_count >= self.max_steps:
             truncated = True
+            # If episode is ending, record the total true reward
+            self.episode_true_rewards.append(self.current_episode_true_reward)
 
         # GPT score with non-linear scaling for more dramatic adjustments
-        # When score is high (0.8-1.0): modest positive adjustment
-        # When score is medium (0.4-0.7): small adjustment
-        # When score is low (0.0-0.3): severe penalty
         if self.latest_gpt_score >= 0.8:
             gpt_score_adjustment = self.latest_gpt_score * self.gpt_score_weight
         elif self.latest_gpt_score >= 0.4:
@@ -376,15 +396,31 @@ class CustomCheetahEnv(gym.Wrapper):
             gpt_score_adjustment = -1 * (1.0 - self.latest_gpt_score) * self.gpt_score_weight
         
         # Add the adjustment to the reward
-        reward += gpt_score_adjustment
+        artificially_induced_reward += gpt_score_adjustment
         info['gpt_score_adjustment'] = gpt_score_adjustment
         info['gpt_score'] = self.latest_gpt_score
         
-        return obs, reward, terminated, truncated, info
+        # On episode termination, record accumulated true reward
+        if truncated:
+            self.episode_true_rewards.append(self.current_episode_true_reward)
+            # Reset the accumulator for next episode
+            self.current_episode_true_reward = 0
+            
+        return obs, artificially_induced_reward, terminated, truncated, info
 
     def reset(self, **kwargs):
         self.step_count = 0
+        # When environment resets, start a new episode true reward accumulation
+        if self.current_episode_true_reward > 0:  # If we have accumulated rewards but didn't terminate normally
+            self.episode_true_rewards.append(self.current_episode_true_reward)
+        self.current_episode_true_reward = 0
         return self.env.reset(**kwargs)
+    
+    def get_latest_true_rewards(self):
+        """Get the most recent true reward values and clear the buffer"""
+        rewards = self.episode_true_rewards.copy()
+        self.episode_true_rewards = []
+        return rewards
 
 
 if __name__ == "__main__":
@@ -447,6 +483,9 @@ if __name__ == "__main__":
         run_gpt_eval=args.run_gpt_eval,
         initial_timesteps=initial_timesteps
     )
+    # Set the environment reference in the callback for accessing true rewards
+    callback.env = env
+    
     total_steps_to_train = 1_000_000
     remaining_steps = total_steps_to_train
     
