@@ -378,7 +378,7 @@ class CustomCheetahEnv(gym.Wrapper):
         
         forward_reward = info.get("reward_forward", 0.0)  # Forward reward component
         ctrl_cost = info.get("reward_ctrl", 0.0)      # Control cost component
-        artificially_induced_reward = 0.8 * forward_reward + 0.2 * ctrl_cost
+        artificially_induced_reward = 0.9 * forward_reward + 0.1 * ctrl_cost
         
         # Increment step counter
         self.step_count += 1
