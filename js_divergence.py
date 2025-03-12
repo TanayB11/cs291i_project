@@ -28,7 +28,8 @@ def rollout_policies(env, P_agent, Q_agent, num_steps=100, seed=42, task='Humano
 
     jsd, hd = [], []
 
-    for _ in range(num_steps):
+    for _ in range(num_steps): # q: not exactly sure whether paper ran for finite steps or until completion
+
         # ppo doesnt expose the action distribution, so we need to sample actions
         
         action_p, _ = P_agent.predict(obs_p, deterministic=False)
