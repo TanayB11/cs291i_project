@@ -58,3 +58,5 @@ visualize_trajectory.py
 ant_hack_*
 hacking_*
 out/*
+gpt_modif/*
+*.csv
