@@ -59,4 +59,5 @@ ant_hack_*
 hacking_*
 out/*
 gpt_modif/*
+cheetah*
 *.csv
