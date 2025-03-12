@@ -61,3 +61,5 @@ out/*
 gpt_modif/*
 cheetah*
 *.csv
+.codeiumignore
+wandb/*
